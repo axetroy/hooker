@@ -27,7 +27,7 @@ func init() {
 		{
 			hookRouter := v1.Party("/hook")
 			hookRouter.Post("/{project}", func(context context.Context) {})                 // 触发项目的钩子
-			hookRouter.Post("/github.com/{owner}/{repo}", hook.GithubRouter)                // 单独部署 Github
+			hookRouter.Post("/github.com", hook.GithubRouter)                               // 单独部署 Github
 			hookRouter.Post("/gitlab.com/{owner}/{repo}", func(context context.Context) {}) // 单独部署 Gitlab
 			hookRouter.Post("/gogs.com/{owner}/{repo}", func(context context.Context) {})   // 单独部署 gogs
 			hookRouter.Post("/gitea.com/{owner}/{repo}", func(context context.Context) {})  // 单独部署 gitea

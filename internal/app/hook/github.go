@@ -2,9 +2,11 @@ package hook
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -35,9 +37,11 @@ type GithubHookPostData struct {
 }
 
 type GithubRouterQuery struct {
-	Port []string `json:"port"` // 端口映射
+	Port []string `url:"port"` // 端口映射, 格式为 8080:80, 本机端口:容器端口
+	Auth string   `url:"auth"` // 认证方式, basic://username:password 或者 token://xxxxxx
 }
 
+// 解析端口
 func (q GithubRouterQuery) ParsePort() (ports []container.ExposePort, err error) {
 	var (
 		machinePort   uint64
@@ -70,17 +74,74 @@ func (q GithubRouterQuery) ParsePort() (ports []container.ExposePort, err error)
 	return
 }
 
+// 解析认证方式，用于克隆项目，公开项目不需要设置，私有项目需要设置
+func (q GithubRouterQuery) ParseAuth() (username string, password string, secretKey string, err error) {
+	if q.Auth == "" {
+		return
+	}
+
+	b, err := base64.URLEncoding.DecodeString(q.Auth)
+
+	if err != nil {
+		err = errors.WithStack(err)
+		return
+	}
+
+	reg, err := regexp.CompilePOSIX(`^(basic|token)://(.{3,})$`)
+
+	if err != nil {
+		err = errors.WithStack(err)
+		return
+	}
+
+	matchers := reg.FindAllStringSubmatch(string(b), 1)
+
+	if len(matchers) == 0 {
+		err = errors.New("invalid format of auth")
+		return
+	}
+
+	matcher := matchers[0]
+
+	if len(matcher) != 3 {
+		err = errors.New("invalid format of auth")
+		return
+	}
+
+	schema := matcher[1]
+	value := matcher[2]
+
+	switch schema {
+	// basic://username:password
+	case "basic":
+		arr := strings.Split(value, ":")
+		username = arr[0]
+		password = strings.Join(arr[1:], ":")
+	// token://the_token_str
+	case "token":
+		secretKey = value
+	}
+
+	return
+}
+
 func GithubRouter(ctx irisContext.Context) {
 	var (
-		err   error
-		data  GithubHookPostData
-		query GithubRouterQuery
+		err         error
+		data        GithubHookPostData
+		query       GithubRouterQuery
+		ports       []container.ExposePort
+		username    string
+		password    string
+		accessToken string
+		runtime     *container.Runtime
 	)
 
 	defer func() {
 		if err != nil {
 			ctx.StatusCode(http.StatusBadRequest)
-			_, _ = ctx.WriteString(fmt.Sprintf("%+v", err))
+			msg := fmt.Sprintf("%+v", err)
+			_, _ = ctx.WriteString(msg)
 		} else {
 			_, _ = ctx.WriteString("Success!")
 		}
@@ -89,61 +150,69 @@ func GithubRouter(ctx irisContext.Context) {
 	// event:
 	// ping
 	// push
-	//event := ctx.GetHeader("X-GitHub-Event")
-
-	owner := ctx.Params().Get("owner")
-	repo := ctx.Params().Get("repo")
-
-	name := fmt.Sprintf("github.com/%s/%s", owner, repo)
+	event := ctx.GetHeader("X-GitHub-Event")
 
 	if err = ctx.ReadQuery(&query); err != nil {
 		err = errors.WithStack(err)
 		return
 	}
 
-	fmt.Printf("%+v\n", query)
-
-	if err = ctx.ReadJSON(&data); err != nil {
-		err = errors.WithStack(err)
-		return
-	}
-
-	asyncErr := make(chan error)
-
-	c, cancel := context.WithTimeout(context.Background(), time.Minute*30)
-
-	defer cancel()
-
-	ports, err := query.ParsePort()
+	ports, err = query.ParsePort()
 
 	if err != nil {
 		err = errors.WithStack(err)
 		return
 	}
 
-	runtime, err := container.NewRuntime(name, data.After, ports)
+	username, password, accessToken, err = query.ParseAuth()
 
 	if err != nil {
 		err = errors.WithStack(err)
 		return
 	}
 
-	err = runtime.Run(c, asyncErr)
+	switch event {
+	case "push":
+		if err = ctx.ReadJSON(&data); err != nil {
+			err = errors.WithStack(err)
+			return
+		}
 
-	if err != nil {
-		return
+		name := fmt.Sprintf("github.com/%s", data.Repository.FullName)
+
+		asyncErr := make(chan error)
+
+		c, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+
+		defer cancel()
+
+		runtime, err = container.NewRuntime(name, data.After, ports)
+
+		if err != nil {
+			err = errors.WithStack(err)
+			return
+		}
+
+		err = runtime.Run(c, username, password, accessToken, asyncErr)
+
+		if err != nil {
+			return
+		}
+
+		go func() {
+			e := <-asyncErr
+
+			log.Printf("%+v\n", e)
+		}()
+
+		select {
+		case <-time.After(1 * time.Minute * 30):
+			err = errors.New("Timeout")
+		case <-c.Done():
+			err = errors.WithStack(c.Err())
+		}
+	default:
+		err = errors.Errorf("Invalid event '%s'", event)
 	}
 
-	go func() {
-		e := <-asyncErr
-
-		log.Printf("%+v\n", e)
-	}()
-
-	select {
-	case <-time.After(1 * time.Minute * 30):
-		err = errors.New("Timeout")
-	case <-c.Done():
-		err = errors.WithStack(c.Err())
-	}
 }

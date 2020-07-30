@@ -10,19 +10,32 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/pkg/errors"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
+	"time"
 )
 
-func getGitURL(name string) string {
+func getGitURL(repo, username, password string) string {
 	switch true {
-	case strings.HasPrefix(name, "github.com"):
-		return fmt.Sprintf("https://%s.git", name)
+	case strings.HasPrefix(repo, "github.com"):
+		if username != "" {
+			return fmt.Sprintf("https://%s:%s@%s.git", url.QueryEscape(username), url.QueryEscape(password), repo)
+		} else {
+			return fmt.Sprintf("https://%s.git", repo)
+		}
+	case strings.HasPrefix(repo, "gitlab.com"):
+		// TODO: finish gitlab
+		break
 	}
 
 	return ""
@@ -122,30 +135,66 @@ func (r *Runtime) beforeRun(ctx context.Context) error {
 	return nil
 }
 
-// TODO: support clone private repo
-func (r *Runtime) clone(ctx context.Context) (string, error) {
+func (r *Runtime) clone(c context.Context, username string, password string, accessToken string, hash string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+
+	defer cancel()
+
 	// clone project
-	fs := osfs.New("./repos/" + r.repo + "/" + r.hash)
+	fs := osfs.New(path.Join("repos", r.repo, r.hash))
 
-	log.Printf("Cloning '%s' into '%s'\n", r.repo, fs.Root())
-
-	_, err := git.CloneContext(ctx, memory.NewStorage(), fs, &git.CloneOptions{
-		URL:      getGitURL(r.repo),
+	options := git.CloneOptions{
+		URL:      getGitURL(r.repo, username, password),
 		Progress: os.Stdout,
-	})
+		//SingleBranch:      true,
+		Depth:             1,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+	}
+
+	if password != "" {
+		options.Auth = &http.BasicAuth{
+			Username: username,
+			Password: password,
+		}
+		options.URL = getGitURL(r.repo, "", "")
+	} else if accessToken != "" {
+		options.Auth = &http.BasicAuth{
+			Username: "access",
+			Password: accessToken,
+		}
+		options.URL = getGitURL(r.repo, "", "")
+	}
+
+	gitDir := path.Join("./", fs.Root(), ".git")
+
+	repo, err := git.CloneContext(ctx, filesystem.NewStorage(osfs.New(gitDir), cache.NewObjectLRU(cache.MiByte*50)), fs, &options)
 
 	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	tree, err := repo.Worktree()
+
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	if err := tree.Checkout(&git.CheckoutOptions{
+		Hash:  plumbing.NewHash(hash),
+		Force: true,
+		Keep:  true,
+	}); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	return fs.Root(), nil
 }
 
-func (r *Runtime) Run(ctx context.Context, ch chan error) error {
+func (r *Runtime) Run(ctx context.Context, username string, password string, accessToken string, ch chan error) error {
 	var (
 		rootPath string
 	)
-	if p, err := r.clone(ctx); err != nil {
+	if p, err := r.clone(ctx, username, password, accessToken, r.hash); err != nil {
 		return errors.WithStack(err)
 	} else {
 		rootPath = p
@@ -252,13 +301,13 @@ func (r *Runtime) Run(ctx context.Context, ch chan error) error {
 		var err error
 		_, err = r.client.ContainerWait(ctx, resp.ID)
 
-		defer func() {
-			ch <- err
-		}()
-
 		if err != nil {
 			err = errors.WithStack(err)
 		}
+
+		defer func() {
+			ch <- err
+		}()
 	}()
 
 	return nil
