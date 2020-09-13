@@ -14,7 +14,7 @@ Hook 是一个基于 Docker 的自动化部署工具，根据定义好的 Docker
 
 但是有时候我们就希望有一个简单的自动化部署，而不用配置 `JenKins` 一大堆啰嗦的东西。
 
-改工具仅适用于部署到测试服务器上
+该工具仅适用于部署到测试服务器上
 
 特性:
 
@@ -26,6 +26,19 @@ Hook 是一个基于 Docker 的自动化部署工具，根据定义好的 Docker
 
 1. ~~构建日志~~
 2. ~~添加数据库/消息队列等第三方服务的支持~~
+
+### 安装
+
+如果你是 Linux/macOS 系统，从以下命令中安装
+
+```bash
+# 安装最新版
+curl -fsSL https://raw.githubusercontent.com/axetroy/hooker/master/install.sh | bash
+# 安装指定版本
+curl -fsSL https://raw.githubusercontent.com/axetroy/hooker/master/install.sh | bash -s v1.0.0
+```
+
+如果是 Window 系统，从 [Github release page](https://github.com/axetroy/hooker/releases) 中下载
 
 ### 使用
 
@@ -51,23 +64,6 @@ https://你的域名/v1/hook/github.com
     6.1 删除旧容器
     6.2 删除旧镜像
 7. 接口返回 success
-
-### 重构新流程
-
-在后续的版本中，应该重构成这个流程
-
-主程序:
-1. 仓库 push 触发 webhook
-2. 程序接收到构建通知
-3. 把构建情况加入到消息队列
-
-消息队列:
-1. 首到新的构建消息
-2. 克隆项目
-3. 根据 Dockerfile 构建一个新的镜像
-4. 停止已经在运行的旧镜像
-5. 启动新镜像
-6. 完成
 
 ### Q & A
 
