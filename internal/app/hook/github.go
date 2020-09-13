@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,7 +32,6 @@ type Owner struct {
 
 type GithubHookPostData struct {
 	Ref        string     `json:"ref"`
-	Before     string     `json:"before"`
 	After      string     `json:"after"`
 	Repository Repository `json:"repository"`
 }
@@ -143,6 +143,7 @@ func GithubRouter(ctx irisContext.Context) {
 			msg := fmt.Sprintf("%+v", err)
 			_, _ = ctx.WriteString(msg)
 		} else {
+			ctx.StatusCode(http.StatusOK)
 			_, _ = ctx.WriteString("Success!")
 		}
 	}()
@@ -186,7 +187,7 @@ func GithubRouter(ctx irisContext.Context) {
 
 		defer cancel()
 
-		runtime, err = container.NewRuntime(name, data.After, ports)
+		runtime, err = container.NewRuntime(name, data.After, ports, os.Stdout)
 
 		if err != nil {
 			err = errors.WithStack(err)
@@ -206,8 +207,8 @@ func GithubRouter(ctx irisContext.Context) {
 		}()
 
 		select {
-		case <-time.After(1 * time.Minute * 30):
-			err = errors.New("Timeout")
+		case <-time.After(time.Second * 1):
+			//err = errors.New("Timeout")
 		case <-c.Done():
 			err = errors.WithStack(c.Err())
 		}

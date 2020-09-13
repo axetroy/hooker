@@ -3,6 +3,14 @@ package container
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"net/url"
+	"os"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -15,14 +23,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/pkg/errors"
-	"io"
-	"log"
-	"net/url"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
-	"time"
 )
 
 func getGitURL(repo, username, password string) string {
@@ -51,9 +51,10 @@ type Runtime struct {
 	hash   string
 	ports  []ExposePort
 	client *client.Client
+	writer io.Writer
 }
 
-func NewRuntime(repo string, hash string, ports []ExposePort) (*Runtime, error) {
+func NewRuntime(repo string, hash string, ports []ExposePort, writer io.Writer) (*Runtime, error) {
 	cli, err := client.NewEnvClient()
 
 	if err != nil {
@@ -65,14 +66,17 @@ func NewRuntime(repo string, hash string, ports []ExposePort) (*Runtime, error) 
 		hash:   hash,
 		ports:  ports,
 		client: cli,
+		writer: writer,
 	}
 
 	return &r, nil
 }
 
+// stop all container run before
 func (r *Runtime) beforeRun(ctx context.Context) error {
-	// stop all container run before
-	containers, err := r.client.ContainerList(ctx, types.ContainerListOptions{})
+	containers, err := r.client.ContainerList(ctx, types.ContainerListOptions{
+		All: true,
+	})
 
 	if err != nil {
 		return errors.WithStack(err)
@@ -82,46 +86,24 @@ func (r *Runtime) beforeRun(ctx context.Context) error {
 		e := func(c types.Container) error {
 			if strings.HasPrefix(c.Image, r.repo+":") {
 				// kill container
-				log.Printf("Stop container '%s'\n", c.ID)
+				log.Printf("Stoping container '%s'\n", c.ID)
 
-				{
-					stopCommand := exec.Command("docker", "stop", c.ID)
-
-					stopCommand.Stdout = os.Stdout
-					stopCommand.Stderr = os.Stderr
-
-					if err := stopCommand.Start(); err != nil {
-						return errors.WithStack(err)
-					}
-				}
-
-				//timeout := 2 * time.Minute
+				//{
+				//	stopCommand := exec.Command("docker", "stop", c.ID)
 				//
-				//if err := r.client.ContainerStop(ctx, c.ID, &timeout); err != nil {
-				//	return errors.WithStack(err)
+				//	//stopCommand.Stdout = os.Stdout
+				//	//stopCommand.Stderr = os.Stderr
+				//
+				//	if err := stopCommand.Run(); err != nil {
+				//		return errors.WithStack(err)
+				//	}
 				//}
 
-				log.Printf("Remove container '%s'\n", c.ID)
+				timeout := 10 * time.Second
 
-				{
-					rmCommand := exec.Command("docker", "rm", "-f", c.ID)
-
-					rmCommand.Stdout = os.Stdout
-					rmCommand.Stderr = os.Stderr
-
-					if err := rmCommand.Start(); err != nil {
-						return errors.WithStack(err)
-					}
+				if err := r.client.ContainerStop(ctx, c.ID, &timeout); err != nil {
+					return errors.WithStack(err)
 				}
-
-				//if err := r.client.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{
-				//	RemoveVolumes: true,
-				//	RemoveLinks:   true,
-				//	Force:         true,
-				//}); err != nil {
-				//	return errors.WithStack(err)
-				//}
-				log.Printf("Remove container '%s' success\n", c.ID)
 			}
 
 			return nil
@@ -135,18 +117,54 @@ func (r *Runtime) beforeRun(ctx context.Context) error {
 	return nil
 }
 
-func (r *Runtime) clone(c context.Context, username string, password string, accessToken string, hash string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+func (r *Runtime) afterRun(ctx context.Context, imageName string) error {
+	if list, err := r.client.ImageList(ctx, types.ImageListOptions{}); err != nil {
+		return err
+	} else {
+		var imageId string
 
-	defer cancel()
+		for _, img := range list {
+			for _, tag := range img.RepoTags {
+				if tag == imageName {
+					imageId = img.ID
+				}
+			}
+		}
+
+		if len(imageId) > 0 {
+			if _, err := r.client.ImageRemove(ctx, imageId, types.ImageRemoveOptions{
+				Force:         true,
+				PruneChildren: true,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Runtime) clone(ctx context.Context, username string, password string, accessToken string, hash string) (string, error) {
+	var (
+		err error
+	)
 
 	// clone project
 	fs := osfs.New(path.Join("repos", r.repo, r.hash))
 
+	if _, e := os.Stat(fs.Root()); e == nil {
+		// if folder exist. then remove it first
+		if err = os.RemoveAll(fs.Root()); err != nil {
+			return "", errors.WithStack(err)
+		}
+	} else if !os.IsNotExist(e) {
+		return "", errors.WithStack(e)
+	}
+
 	options := git.CloneOptions{
-		URL:      getGitURL(r.repo, username, password),
-		Progress: os.Stdout,
-		//SingleBranch:      true,
+		URL:               getGitURL(r.repo, username, password),
+		Progress:          os.Stdout,
+		SingleBranch:      true,
 		Depth:             1,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
@@ -169,6 +187,12 @@ func (r *Runtime) clone(c context.Context, username string, password string, acc
 
 	repo, err := git.CloneContext(ctx, filesystem.NewStorage(osfs.New(gitDir), cache.NewObjectLRU(cache.MiByte*50)), fs, &options)
 
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(fs.Root())
+		}
+	}()
+
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -190,19 +214,8 @@ func (r *Runtime) clone(c context.Context, username string, password string, acc
 	return fs.Root(), nil
 }
 
-func (r *Runtime) Run(ctx context.Context, username string, password string, accessToken string, ch chan error) error {
-	var (
-		rootPath string
-	)
-	if p, err := r.clone(ctx, username, password, accessToken, r.hash); err != nil {
-		return errors.WithStack(err)
-	} else {
-		rootPath = p
-	}
-
+func (r *Runtime) buildImage(ctx context.Context, rootPath string, imageName string) (io.ReadCloser, error) {
 	reader, err := archive.TarWithOptions(rootPath, &archive.TarOptions{})
-
-	imageName := fmt.Sprintf("%s:%s", r.repo, r.hash)
 
 	options := types.ImageBuildOptions{
 		SuppressOutput: false,
@@ -214,46 +227,53 @@ func (r *Runtime) Run(ctx context.Context, username string, password string, acc
 
 	log.Println("Building image...")
 
-	buildResponse, err := r.client.ImageBuild(context.Background(), reader, options)
+	buildResponse, err := r.client.ImageBuild(ctx, reader, options)
+
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return buildResponse.Body, nil
+}
+
+func (r *Runtime) Run(ctx context.Context, username string, password string, accessToken string, ch chan error) error {
+	var (
+		rootPath string
+	)
+	if p, err := r.clone(ctx, username, password, accessToken, r.hash); err != nil {
+		return errors.WithStack(err)
+	} else {
+		rootPath = p
+	}
+
+	imageName := fmt.Sprintf("%s:%s", r.repo, r.hash)
+
+	output, err := r.buildImage(ctx, rootPath, imageName)
 
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	// copy out response of stream
+	_, err = io.Copy(r.writer, output)
+
+	defer func() {
+		_ = output.Close()
+	}()
 
 	// stop all container run before
 	if err := r.beforeRun(ctx); err != nil {
 		return errors.WithStack(err)
 	}
 
+	// remove all images create before
 	defer func() {
-		_ = buildResponse.Body.Close()
-
-		if list, err := r.client.ImageList(ctx, types.ImageListOptions{}); err != nil {
-			//return err
-		} else {
-			var imageId string
-
-			for _, img := range list {
-				for _, tag := range img.RepoTags {
-					if tag == imageName {
-						imageId = img.ID
-					}
-				}
-			}
-
-			if len(imageId) > 0 {
-				if _, err := r.client.ImageRemove(ctx, imageId, types.ImageRemoveOptions{
-					Force:         true,
-					PruneChildren: true,
-				}); err != nil {
-					// return err
-				}
+		if err != nil {
+			if er := r.afterRun(ctx, imageName); err != nil {
+				err = er
 			}
 		}
 	}()
-
-	// Copy out response of stream
-	_, err = io.Copy(os.Stdout, buildResponse.Body)
 
 	if err != nil {
 		return errors.WithStack(err)
@@ -283,15 +303,7 @@ func (r *Runtime) Run(ctx context.Context, username string, password string, acc
 		return errors.WithStack(err)
 	}
 
-	defer func() {
-		_ = r.client.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{
-			RemoveVolumes: true,
-			RemoveLinks:   true,
-			Force:         true,
-		})
-	}()
-
-	if err := r.client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := r.client.ContainerStart(context.Background(), resp.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -299,7 +311,8 @@ func (r *Runtime) Run(ctx context.Context, username string, password string, acc
 
 	go func() {
 		var err error
-		_, err = r.client.ContainerWait(ctx, resp.ID)
+		// wait until container exit
+		_, err = r.client.ContainerWait(context.Background(), resp.ID)
 
 		if err != nil {
 			err = errors.WithStack(err)
