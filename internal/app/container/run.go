@@ -88,17 +88,6 @@ func (r *Runtime) beforeRun(ctx context.Context) error {
 				// kill container
 				log.Printf("Stoping container '%s'\n", c.ID)
 
-				//{
-				//	stopCommand := exec.Command("docker", "stop", c.ID)
-				//
-				//	//stopCommand.Stdout = os.Stdout
-				//	//stopCommand.Stderr = os.Stderr
-				//
-				//	if err := stopCommand.Run(); err != nil {
-				//		return errors.WithStack(err)
-				//	}
-				//}
-
 				timeout := 10 * time.Second
 
 				if err := r.client.ContainerStop(ctx, c.ID, &timeout); err != nil {
