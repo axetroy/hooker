@@ -76,7 +76,7 @@ https://你的域名/v1/hook/github.com
 
 ### Q & A
 
-1. 如何构建私有项目?
+1. 如何构建私有项目？
 
 目前支持构建公开的项目，构建私有项目则需要认证
 
@@ -90,10 +90,10 @@ https://你的域名/v1/hook/github.com?auth=xxxx
 
 ```
 basic://username:password
-token://you_access_token
+token://your_access_token
 ```
 
-2. 如果暴露容器的端口
+2. 如何暴露容器的端口？
 
 通过参数`?port=1234:1234`
 
