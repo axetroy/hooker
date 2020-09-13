@@ -206,6 +206,10 @@ func (r *Runtime) clone(ctx context.Context, username string, password string, a
 func (r *Runtime) buildImage(ctx context.Context, rootPath string, imageName string) (io.ReadCloser, error) {
 	reader, err := archive.TarWithOptions(rootPath, &archive.TarOptions{})
 
+	if err != nil {
+		return nil, err
+	}
+
 	options := types.ImageBuildOptions{
 		SuppressOutput: false,
 		Remove:         true,

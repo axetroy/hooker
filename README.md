@@ -1,14 +1,22 @@
+[![Build Status](https://github.com/axetroy/hooker/workflows/ci/badge.svg)](https://github.com/axetroy/hooker/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/axetroy/hooker)](https://goreportcard.com/report/github.com/axetroy/hooker)
+![Latest Version](https://img.shields.io/github/v/release/axetroy/hooker.svg)
+![License](https://img.shields.io/github/license/axetroy/hooker.svg)
+![Repo Size](https://img.shields.io/github/repo-size/axetroy/hooker.svg)
+
 ## Hooker
 
-> Currently, This is still in the development stage
+> 当前仍然出于开发阶段
 
-Hook tool for automated deployment based on Docker
+Hook 是一个基于 Docker 的自动化部署工具，根据定义好的 Dockerfile 进行构建并且部署。
 
-Feature:
+这是一个简易的自动化部署工具，功能肯定无法与 `JenKins` 相比，但是有时候我们就希望有一个简单的自动化部署，而不用配置 `JenKins` 一大堆啰嗦的东西
 
-- [x] Deploy locally
-- [ ] Deploy on the remote
-- [ ] Support `docker-compose.yml`
+特性:
+
+- [x] 部署镜像到本地
+- [ ] 部署镜像到远程服务器
+- [ ] 支持 `docker-compose.yml`
 
 ### 使用
 

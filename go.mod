@@ -1,6 +1,6 @@
 module github.com/axetroy/hooker
 
-go 1.14
+go 1.15
 
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0 // indirect
 
