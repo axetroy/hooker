@@ -68,7 +68,9 @@ https://你的域名/v1/hook/github.com
 4. 根据 Dockerfile 构建一个新的镜像
 5. 停止已经在运行的旧容器
 6. 启动新镜像
+
     6.1 删除旧容器
+    
     6.2 删除旧镜像
 7. 接口返回 success
 
