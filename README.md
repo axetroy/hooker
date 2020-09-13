@@ -95,3 +95,7 @@ https://你的域名/v1/hook/github.com?auth=xxxx&port=1234:1234
 可以同时暴露多个端口`?port=1234:1234&port=2345:2345`
 
 here is an [example](https://github.com/axetroy/hooker-example)
+
+### License
+
+The MIT License
