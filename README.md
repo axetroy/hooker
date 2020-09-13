@@ -10,13 +10,22 @@
 
 Hook 是一个基于 Docker 的自动化部署工具，根据定义好的 Dockerfile 进行构建并且部署。
 
-这是一个简易的自动化部署工具，功能肯定无法与 `JenKins` 相比，但是有时候我们就希望有一个简单的自动化部署，而不用配置 `JenKins` 一大堆啰嗦的东西
+这是一个简易的自动化部署工具，功能肯定无法与 `JenKins` 相比。
+
+但是有时候我们就希望有一个简单的自动化部署，而不用配置 `JenKins` 一大堆啰嗦的东西。
+
+改工具仅适用于部署到测试服务器上
 
 特性:
 
 - [x] 部署镜像到本地
 - [ ] 部署镜像到远程服务器
 - [ ] 支持 `docker-compose.yml`
+
+不会支持的特性:
+
+1. ~~构建日志~~
+2. ~~添加数据库/消息队列等第三方服务的支持~~
 
 ### 使用
 
@@ -89,4 +98,4 @@ https://你的域名/v1/hook/github.com?auth=xxxx&port=1234:1234
 
 可以同时暴露多个端口`?port=1234:1234&port=2345:2345`
 
-here is an [example](https://github.com/axetroy/hook-example)
+here is an [example](https://github.com/axetroy/hooker-example)
