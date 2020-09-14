@@ -15,8 +15,6 @@ FROM alpine:3.12
 WORKDIR /app
 COPY --from=builder /app/bin .
 
-ENV PORT=80
-
 EXPOSE 80
 
-CMD ["./hooker"]
+CMD ["./hooker", "--port", "80"]
