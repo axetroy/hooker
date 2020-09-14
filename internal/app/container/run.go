@@ -1,7 +1,9 @@
 package container
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -232,12 +234,19 @@ func (r *Runtime) buildImage(ctx context.Context, rootPath string, imageName str
 func (r *Runtime) Run(ctx context.Context, username string, password string, accessToken string, ch chan error) error {
 	var (
 		rootPath string
+		err      error
 	)
 	if p, err := r.clone(ctx, username, password, accessToken, r.hash); err != nil {
 		return errors.WithStack(err)
 	} else {
 		rootPath = p
 	}
+
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(rootPath)
+		}
+	}()
 
 	imageName := fmt.Sprintf("%s:%s", r.repo, r.hash)
 
@@ -247,8 +256,40 @@ func (r *Runtime) Run(ctx context.Context, username string, password string, acc
 		return errors.WithStack(err)
 	}
 
+	reader := bufio.NewReader(output)
+
 	// copy out response of stream
-	_, err = io.Copy(r.writer, output)
+	for {
+		// var b []byte = make([]byte, 1024*10)
+
+		// _, err := output.Read(b)
+
+		line, _, err := reader.ReadLine()
+
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		if err == io.EOF {
+			break
+		}
+
+		type Progress struct {
+			Stream string `json:"stream"`
+		}
+
+		var p Progress
+
+		if err := json.Unmarshal(line, &p); err != nil {
+			return err
+		}
+
+		if _, err := r.writer.Write([]byte(p.Stream)); err != nil {
+			return err
+		}
+	}
+
+	// _, err = io.Copy(r.writer, output)
 
 	defer func() {
 		_ = output.Close()
