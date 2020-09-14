@@ -6,6 +6,8 @@
 ![License](https://img.shields.io/github/license/axetroy/hooker.svg)
 ![Repo Size](https://img.shields.io/github/repo-size/axetroy/hooker.svg)
 
+![screen](./screen.png)
+
 ## Hooker
 
 > 当前仍然出于开发阶段
@@ -106,7 +108,7 @@ https://你的域名/v1/hook/github.com?auth=xxxx&port=1234:1234
 
 可以同时暴露多个端口`?port=1234:1234&port=2345:2345`
 
-here is an [example](https://github.com/axetroy/hooker-example)
+这里有一个例子 https://github.com/axetroy/hooker-example
 
 ### License
 
