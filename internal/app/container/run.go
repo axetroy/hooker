@@ -176,7 +176,9 @@ func (r *Runtime) clone(ctx context.Context, username string, password string, a
 
 	gitDir := path.Join("./", fs.Root(), ".git")
 
-	repo, err := git.CloneContext(ctx, filesystem.NewStorage(osfs.New(gitDir), cache.NewObjectLRU(cache.MiByte*50)), fs, &options)
+	storage := filesystem.NewStorage(osfs.New(gitDir), cache.NewObjectLRU(cache.MiByte*50))
+
+	repo, err := git.CloneContext(ctx, storage, fs, &options)
 
 	defer func() {
 		if err != nil {
