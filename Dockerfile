@@ -7,7 +7,7 @@ COPY main.go go.mod go.sum ./
 COPY ./vendor ./vendor
 COPY ./internal ./internal
 
-RUN CGO_ENABLED=0 GOOS=$linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags "-s -w" -o ./bin/hooker main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags "-s -w" -o ./bin/hooker main.go
 
 # target
 FROM alpine:3.11
