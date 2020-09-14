@@ -1,4 +1,6 @@
 [![Build Status](https://github.com/axetroy/hooker/workflows/ci/badge.svg)](https://github.com/axetroy/hooker/actions)
+[![Docker Build Status](https://img.shields.io/docker/cloud/build/axetroy/hooker)](https://hub.docker.com/r/axetroy/hooker/builds)
+[![Docker Pulls](https://img.shields.io/docker/pulls/axetroy/hooker)](https://hub.docker.com/r/axetroy/hooker/builds)
 [![Go Report Card](https://goreportcard.com/badge/github.com/axetroy/hooker)](https://goreportcard.com/report/github.com/axetroy/hooker)
 ![Latest Version](https://img.shields.io/github/v/release/axetroy/hooker.svg)
 ![License](https://img.shields.io/github/license/axetroy/hooker.svg)
