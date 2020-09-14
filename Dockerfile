@@ -6,7 +6,6 @@ WORKDIR /app
 COPY main.go go.mod go.sum ./
 COPY ./vendor ./vendor
 COPY ./internal ./internal
-COPY ./cmd/user/main.go ./cmd/user/main.go
 
 RUN CGO_ENABLED=0 GOOS=$linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags "-s -w" -o ./bin/hooker main.go
 
