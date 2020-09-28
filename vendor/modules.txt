@@ -14,7 +14,7 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/Shopify/goreferrer v0.0.0-20181106222321-ec9c9a553398
 ## explicit
 github.com/Shopify/goreferrer
-# github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 => github.com/sirupsen/logrus v1.6.0
+# github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 => github.com/sirupsen/logrus v1.7.0
 ## explicit
 github.com/Sirupsen/logrus
 # github.com/ajg/form v1.5.1
@@ -215,8 +215,6 @@ github.com/kevinburke/ssh_config
 ## explicit
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
-# github.com/konsorten/go-windows-terminal-sequences v1.0.3
-github.com/konsorten/go-windows-terminal-sequences
 # github.com/mattn/go-colorable v0.1.7
 ## explicit
 # github.com/microcosm-cc/bluemonday v1.0.3
@@ -321,4 +319,4 @@ gopkg.in/warnings.v0
 gopkg.in/yaml.v3
 # moul.io/http2curl v1.0.0
 ## explicit
-# github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0
+# github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.7.0

@@ -2,7 +2,7 @@ module github.com/axetroy/hooker
 
 go 1.15
 
-replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0 // indirect
+replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.7.0 // indirect
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
