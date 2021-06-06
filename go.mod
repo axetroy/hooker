@@ -7,7 +7,6 @@ replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.7.0 // indir
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/Joker/jade v1.0.0 // indirect
-	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Shopify/goreferrer v0.0.0-20181106222321-ec9c9a553398 // indirect
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 // indirect
 	github.com/ajg/form v1.5.1 // indirect
@@ -19,8 +18,8 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200529170236-5abacdfa4915 // indirect
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
-	github.com/go-git/go-billy/v5 v5.0.0
-	github.com/go-git/go-git/v5 v5.2.0
+	github.com/go-git/go-billy/v5 v5.3.1
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/schema v1.1.0 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
@@ -50,7 +49,5 @@ require (
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
-	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	moul.io/http2curl v1.0.0 // indirect
 )
